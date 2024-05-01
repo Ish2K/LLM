@@ -22,6 +22,7 @@ model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-large")
 # fine tune the model
 
 from transformers import Trainer, TrainingArguments
+from trl import SFTTrainer
 
 # define the training arguments
 training_args = TrainingArguments(
@@ -36,17 +37,26 @@ training_args = TrainingArguments(
     output_dir='./results'
 )
 
-dataset = load_dataset("./data", split="train", trust_remote_code=True)
+dataset = load_dataset("json", data_files = "./data/data.jsonl", split="train", trust_remote_code=True)
 
 print(dataset)
 # create a trainer specific for language modeling
-trainer = Trainer(
-    model=model,
-    tokenizer=tokenizer,
+trainer = SFTTrainer(
+    "facebook/opt-350m",
     args=training_args,
-    train_dataset=tokenizer(dataset["prompt"], return_tensors="pt"),
-    eval_dataset=tokenizer(dataset["completion"], return_tensors="pt")
+    train_dataset=dataset,
+    dataset_text_field="completion",
+    packing=True,
 )
 
 # start training
 trainer.train()
+
+# generate inference
+
+from transformers import pipeline
+
+# load the fine-tuned model
+model = AutoModelForCausalLM.from_pretrained("./results")
+
+# load the tokenizer
